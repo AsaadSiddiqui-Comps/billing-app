@@ -27,8 +27,17 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # ✅ ADD THIS STEP
+      - name: Fix react-native-screens compatibility
+        run: npm install react-native-screens@latest
+
       - name: Make gradlew executable
         run: chmod +x android/gradlew
+
+      - name: Clean build (recommended)
+        run: |
+          cd android
+          ./gradlew clean
 
       - name: Build Debug APK
         run: |
