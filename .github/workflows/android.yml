@@ -24,17 +24,26 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Clear npm cache
+        run: npm cache clean --force
 
-      # ✅ ADD THIS STEP
-      - name: Fix react-native-screens compatibility
-        run: npm install react-native-screens@latest
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      # Fix: pin react-native-screens to a version compatible with RN 0.79.x codegen
+      # The older version had an undefined type on `accessibilityContainerViewIsModal`
+      - name: Fix react-native-screens codegen compatibility
+        run: npm install react-native-screens@4.5.0 --legacy-peer-deps
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Clean build (recommended)
+      - name: Clear Gradle cache
+        run: |
+          rm -rf ~/.gradle/caches
+          rm -rf android/.gradle
+
+      - name: Clean build
         run: |
           cd android
           ./gradlew clean
@@ -42,7 +51,7 @@ jobs:
       - name: Build Debug APK
         run: |
           cd android
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
