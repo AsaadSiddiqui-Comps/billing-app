@@ -30,22 +30,17 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      # Pin react-native-screens to a version compatible with RN 0.79.x codegen
-      - name: Fix react-native-screens codegen compatibility
-        run: npm install react-native-screens@4.5.0 --legacy-peer-deps
-
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
       # RN 0.79 is fully AndroidX-native — Jetifier must be OFF.
-      # Leaving it ON causes it to try (and fail with OOM) to re-process
-      # the huge react-android and hermes-android AARs unnecessarily.
+      # Leaving it ON causes OOM when processing react-android / hermes AARs.
       - name: Disable Jetifier in gradle.properties
         run: |
           sed -i 's/android.enableJetifier=true/android.enableJetifier=false/' android/gradle.properties
           grep -q 'android.enableJetifier' android/gradle.properties || echo 'android.enableJetifier=false' >> android/gradle.properties
 
-      # Increase Gradle JVM heap to avoid OutOfMemoryError during large AAR transforms
+      # Give Gradle enough heap for RN 0.79's large dependency graph
       - name: Increase Gradle JVM heap in gradle.properties
         run: |
           sed -i 's/-Xmx[0-9]*[gGmM]/-Xmx4g/g' android/gradle.properties
@@ -62,13 +57,16 @@ jobs:
           cd android
           ./gradlew clean
 
-      - name: Build Debug APK
+      # assembleRelease skips debug-only overhead and avoids some
+      # debug-variant Kotlin API conflicts. APK is unsigned but fully installable
+      # via adb or can be signed in a follow-up step.
+      - name: Build Release APK (unsigned)
         run: |
           cd android
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleRelease --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug.apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: app-release-unsigned.apk
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
