@@ -30,13 +30,27 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      # Fix: pin react-native-screens to a version compatible with RN 0.79.x codegen
-      # The older version had an undefined type on `accessibilityContainerViewIsModal`
+      # Pin react-native-screens to a version compatible with RN 0.79.x codegen
       - name: Fix react-native-screens codegen compatibility
         run: npm install react-native-screens@4.5.0 --legacy-peer-deps
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
+
+      # RN 0.79 is fully AndroidX-native — Jetifier must be OFF.
+      # Leaving it ON causes it to try (and fail with OOM) to re-process
+      # the huge react-android and hermes-android AARs unnecessarily.
+      - name: Disable Jetifier in gradle.properties
+        run: |
+          sed -i 's/android.enableJetifier=true/android.enableJetifier=false/' android/gradle.properties
+          grep -q 'android.enableJetifier' android/gradle.properties || echo 'android.enableJetifier=false' >> android/gradle.properties
+
+      # Increase Gradle JVM heap to avoid OutOfMemoryError during large AAR transforms
+      - name: Increase Gradle JVM heap in gradle.properties
+        run: |
+          sed -i 's/-Xmx[0-9]*[gGmM]/-Xmx4g/g' android/gradle.properties
+          grep -q 'org.gradle.jvmargs' android/gradle.properties \
+            || echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m' >> android/gradle.properties
 
       - name: Clear Gradle cache
         run: |
